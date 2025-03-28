@@ -3,6 +3,7 @@ package  com.adoptapaws.presentation.addAdoption
 import android.Manifest
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.net.Uri
@@ -44,7 +45,10 @@ import androidx.core.app.ActivityCompat
 import androidx.fragment.app.FragmentContainerView
 import androidx.fragment.app.commit
 import coil.compose.rememberAsyncImagePainter
+import com.adoptapaws.domain.AddDog
+import com.adoptapaws.presentation.adoptListHome.AdoptListHomeActivity
 import com.adoptapaws.presentation.map.MapFragment
+import com.adoptapaws.utils.SharedPrefHelper
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -54,6 +58,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.gson.Gson
 
 class AddAdoptionActivity : AppCompatActivity(), OnMapReadyCallback {
 
@@ -67,8 +72,7 @@ class AddAdoptionActivity : AppCompatActivity(), OnMapReadyCallback {
         setContent {
             AddAdoptionScreen(
                 imageUri = imageUri,
-                onImageUriChange = { newUri -> imageUri = newUri },
-                currentLocation = currentLocation
+                onImageUriChange = { newUri -> imageUri = newUri }
             )
         }
         checkCameraPermission()
@@ -118,7 +122,7 @@ class AddAdoptionActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
-        Log.d("JGBT", "onMapReady called"+currentLocation)
+        Log.d("JGBT", "onMapReady called" + currentLocation)
         currentLocation?.let {
             // Si currentLocation no es nulo, mueve la cámara a la ubicación actual
             val cameraPosition = CameraPosition.Builder()
@@ -173,8 +177,7 @@ class AddAdoptionActivity : AppCompatActivity(), OnMapReadyCallback {
     @Composable
     fun AddAdoptionScreen(
         imageUri: Uri?,
-        onImageUriChange: (Uri?) -> Unit,
-        currentLocation: LatLng?
+        onImageUriChange: (Uri?) -> Unit
     ) {
         val scrollState = rememberScrollState()
         var name by remember { mutableStateOf("") }
@@ -282,18 +285,26 @@ class AddAdoptionActivity : AppCompatActivity(), OnMapReadyCallback {
                         container
                     },
                     update = { container ->
-                        val fragment = (container.context as? AppCompatActivity)?.supportFragmentManager?.findFragmentById(
-                            container.id
-                        ) as? MapFragment
+                        val fragment =
+                            (container.context as? AppCompatActivity)?.supportFragmentManager?.findFragmentById(
+                                container.id
+                            ) as? MapFragment
 
-                        fragment?.getSupportMapFragment()?.getMapAsync(this@AddAdoptionActivity)  // Aquí usamos 'this' para el callback
+                        fragment?.getSupportMapFragment()
+                            ?.getMapAsync(this@AddAdoptionActivity)  // Aquí usamos 'this' para el callback
                     }
                 )
 
-
-
                 Button(
                     onClick = {
+                        val adoptionData = saveAdoptionData(name, age, description)
+                        //convertirmos a json
+                        val adoptionDataJson = Gson().toJson(adoptionData)
+                        SharedPrefHelper(context).save("adoption_data", adoptionDataJson)
+                        if(adoptionData.image.isNotEmpty()){
+                            val intent = Intent(context, AdoptListHomeActivity::class.java)
+                            context.startActivity(intent)
+                        }
                         Toast.makeText(context, "Adopción registrada", Toast.LENGTH_SHORT).show()
                     }
                 ) {
@@ -301,6 +312,16 @@ class AddAdoptionActivity : AppCompatActivity(), OnMapReadyCallback {
                 }
             }
         }
+    }
+
+    fun saveAdoptionData(name: String, age: String, description: String): AddDog {
+        return AddDog(
+            name = name,
+            age = age,
+            description = description,
+            image = imageUri.toString(),
+            location = currentLocation ?: LatLng(0.0, 0.0)
+        )
     }
 
     fun createImageUri(context: Context): Uri {

@@ -85,5 +85,6 @@ dependencies {
 
     implementation ("androidx.fragment:fragment-ktx:1.3.6")
     implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation ("com.google.code.gson:gson:2.10.1")
 
 }
