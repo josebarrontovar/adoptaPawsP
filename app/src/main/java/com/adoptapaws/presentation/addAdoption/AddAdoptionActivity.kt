@@ -41,6 +41,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.FragmentContainerView
 import androidx.fragment.app.commit
@@ -174,6 +176,17 @@ class AddAdoptionActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
 
+    /**
+     * Composable function for the screen to add a dog for adoption.
+     *
+     * This screen allows the user to enter details about a dog they want to put up for adoption,
+     * including its name, age, and a description. It also provides functionality to take a photo
+     * of the dog and to select a location using a map.
+     *
+     * @param imageUri The URI of the image of the dog. Can be null if no image has been taken.
+     * @param onImageUriChange A callback function to update the `imageUri`. It takes a nullable
+     *   [Uri] as its parameter.
+     */
     @Composable
     fun AddAdoptionScreen(
         imageUri: Uri?,
@@ -300,11 +313,28 @@ class AddAdoptionActivity : AppCompatActivity(), OnMapReadyCallback {
                         val adoptionData = saveAdoptionData(name, age, description)
                         //convertirmos a json
                         val adoptionDataJson = Gson().toJson(adoptionData)
-                        SharedPrefHelper(context).save("adoption_data", adoptionDataJson)
-                        if(adoptionData.image.isNotEmpty()){
+                        val existDataSharedPref= SharedPrefHelper(context).getString("adoption_data")
+                        if (existDataSharedPref.isNotEmpty()) {
+                            // Primero parseamos el JSON existente
+                            val existingData = Gson().fromJson(existDataSharedPref, Array<AddDog>::class.java).toMutableList()
+                            existingData.add(adoptionData)  // Agregamos el nuevo objeto
+
+                            // Convertimos la lista completa a JSON
+                            val adoptionDataMixJson = Gson().toJson(existingData)
+                            SharedPrefHelper(context).save("adoption_data", adoptionDataMixJson)
+                        } else {
+                            // Si no existe ningún dato, guardamos el objeto como una lista
+                            val adoptionDataList = mutableListOf(adoptionData)
+                            val adoptionDataListJson = Gson().toJson(adoptionDataList)
+                            SharedPrefHelper(context).save("adoption_data", adoptionDataListJson)
+                        }
+
+                        if (adoptionData.image.isNotEmpty()) {
                             val intent = Intent(context, AdoptListHomeActivity::class.java)
                             context.startActivity(intent)
+                            finish()
                         }
+
                         Toast.makeText(context, "Adopción registrada", Toast.LENGTH_SHORT).show()
                     }
                 ) {
